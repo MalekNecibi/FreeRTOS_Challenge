@@ -1,6 +1,6 @@
-# Custom Patch Script to Upload binaries compiled with Arduino IDE to ESP32 via WSL
 
-Start-Process -FilePath wsl.exe -ArgumentList "echo Prepping WSL for Upload ; sleep 10" -WindowStyle Minimized
+Start-Process -FilePath wsl.exe -ArgumentList "echo Prepping WSL for Upload ; sleep 10" -WindowStyle Hidden
+
 
 # Prevent Arduino IDE Serial Monitor from blocking upload
 taskkill /im serial-monitor.exe /f 2> $null
@@ -40,18 +40,20 @@ $sketch_dir=(Get-ChildItem -Path C:\Users\Malek\AppData\Local\Temp\arduino\sketc
 $sketch_name=((Get-ChildItem -Path $sketch_dir | Sort-Object -Property Length -Descending | Select-Object -First 1).Name.split('.')[0])
 
 
-echo "Prepping WSL File Names"
+echo "Prepping WSL File Names:"
+echo $sketch_name
 
 $bootloader_path_win=$sketch_dir+$sketch_name+".ino.bootloader.bin"
 $partitions_path_win=$sketch_dir+$sketch_name+".ino.partitions.bin"
 $boot_path_win="C:\Users\Malek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\2.0.11/tools/partitions/boot_app0.bin"
 $bin_path_win=$sketch_dir+$sketch_name+".ino.bin"
 
-$bootloader_path_wsl=(wsl wslpath -u ($bootloader_path_win.replace('\','/')))
-$partitions_path_wsl=(wsl wslpath -u ($partitions_path_win.replace('\','/')))
-$boot_path_wsl=(wsl wslpath -u ($boot_path_win.replace('\','/')))
-$bin_path_wsl=(wsl wslpath -u ($bin_path_win.replace('\','/')))
+$bootloader_path_wsl=	(wsl wslpath -u ($bootloader_path_win.replace('\','/')))
+$partitions_path_wsl=	(wsl wslpath -u ($partitions_path_win.replace('\','/')))
+$boot_path_wsl=			(wsl wslpath -u ($boot_path_win.replace('\','/')))
+$bin_path_wsl=			(wsl wslpath -u ($bin_path_win.replace('\','/')))
 
+echo $bin_path_wsl
 
 wsl ~/git_wsl/esptool_bin/esptool --chip esp32 --port /dev/ttyUSB0 --baud 921600  --before default_reset --after hard_reset write_flash  -z --flash_mode dio --flash_freq 80m --flash_size 4MB 0x1000 $bootloader_path_wsl 0x8000 $partitions_path_wsl 0xe000 $boot_path_wsl 0x10000 $bin_path_wsl
 
