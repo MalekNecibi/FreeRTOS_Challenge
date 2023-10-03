@@ -4,15 +4,20 @@ static const BaseType_t app_cpu = 0;
 static const BaseType_t app_cpu = 1;
 #endif
 
-void taskA(void* parameter);
+static const int led_pin = LED_BUILTIN;
+
+void task(void* parameter);
 
 void setup() {
+    pinMode(led_pin, OUTPUT);
+    digitalWrite(led_pin, HIGH);
+
     Serial.begin(115200);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);    // Serial initialization needs time
+    vTaskDelay(500 / portTICK_PERIOD_MS);    // Serial initialization needs time
     
     // Start Task
     xTaskCreatePinnedToCore(
-        taskA,
+        task,
         "Task A",
         256 + configMINIMAL_STACK_SIZE,
         NULL,
@@ -28,10 +33,10 @@ void setup() {
 
 void loop() {}
 
-void taskA(void* parameter) {
-    if (NULL == parameter) {
-        return;
-    }
+void task(void* parameter) {
+    // if (NULL == parameter) {
+        // return;
+    // }
     void* pVariable = (void*)parameter;
     
     while(1) {
