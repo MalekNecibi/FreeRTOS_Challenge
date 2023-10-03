@@ -1,4 +1,5 @@
 #SingleInstance, Force
+Menu Tray, Icon, %A_ScriptDir%\esp32-icon.jpg
 SetTitleMatchMode, 2
 
 ; Keyboard shortcuts to trigger Arduino compile with WSL upload
@@ -90,7 +91,7 @@ ReUpload:
 
 
 #If
-; `::ExitApp
+`::ExitApp
 
 RemoveToolTip:
 Tooltip

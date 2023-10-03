@@ -1,0 +1,6 @@
+https://learn.microsoft.com/en-us/archive/blogs/embedded/skipping-serial-port-enumeration
+
+http://web.archive.org/web/20150215151107/https://support.microsoft.com/kb/283063
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB\VID_10C4&PID_EA60\0001\Device Parameters]
+"SkipEnumerations"=dword:ffffffff
