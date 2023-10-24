@@ -67,6 +67,9 @@ void IRAM_ATTR onTimer(void);
 void computeAverage(void* param);
 void serialInterface(void* param);
 
+// Helper Functions
+uint8_t parseSerialCommands(const char* inputBuffer, uint16_t numChars);
+void resetInputBuffer(char* inputBuffer, uint16_t* numChars);
 
 /// Function Definitions ///
 void setup() {
@@ -195,8 +198,8 @@ void computeAverage(void* param){
 }
 
 void serialInterface(void* param) {
-    static char inputChars[INPUT_STRING_MAX_LENGTH + 1] = {0};  // extra for sentinel
-    int numChars = 0;
+    static char inputString[INPUT_STRING_MAX_LENGTH + 1] = {0};  // extra for sentinel
+    uint16_t numChars = 0;
     
     // loop check for new characters
     while(1) {
@@ -206,40 +209,64 @@ void serialInterface(void* param) {
             // edge case: end of command/sentence
             if ('\r' == newChar || '\n' == newChar) {
                 Serial.println();
-                inputChars[numChars] = '\0';
+                inputString[numChars] = '\0';
                 
                 // treat LF and CRLF as equivalent newlines
                 if ('\r' == newChar && '\n' == Serial.peek()) {
                     Serial.read();
                 }
 
-                // Average Command implentation
-                if (0 == strcmp(inputChars, average_command)) {
-                    Serial.print("Average: ");
-                    Serial.println(average);
-                }
-
+                parseSerialCommands(inputString, numChars);
+                
                 // reset buffer
-                numChars = 0;
-                inputChars[0] = '\0';
+                resetInputBuffer(inputString, &numChars);
 
             // base case
             } else {
-                inputChars[numChars] = newChar;
-                // inputChars[numChars+1] = '\0';                     // hacky but safer
+                inputString[numChars] = newChar;
+                inputString[numChars+1] = '\0';                     // hacky but safer
                 Serial.print(newChar);
                 numChars++;
             }
             
             // prevent buffer overflow
             if (numChars >= INPUT_STRING_MAX_LENGTH) {
-                // ASSUMPTION : maximum length messages are not commands, and will not be parsed
-                Serial.println();
-                numChars = 0;
+                inputString[INPUT_STRING_MAX_LENGTH] = '\0';
+
+                if (0 == parseSerialCommands(inputString, numChars)) {
+                    Serial.println();                               // TODO : no newline if it was a command
+                }
+                
+                resetInputBuffer(inputString, &numChars);
             }
         }
 
-        taskYIELD();
-        // vTaskDelay(5 / portTICK_PERIOD_MS);
+        // allow other tasks cpu time
+        if (0 == numChars % 8) {
+            // taskYIELD();
+            vTaskDelay(20 / portTICK_PERIOD_MS);
+        }
     }
+}
+
+
+// Helper Functions
+
+uint8_t parseSerialCommands(const char* inputBuffer, const uint16_t numChars) {
+    uint16_t numBytes = (INPUT_STRING_MAX_LENGTH < numChars) ? INPUT_STRING_MAX_LENGTH : numChars;
+    // inputBuffer[numChars] = '\0';                                   // should not be necessary, but safer
+    
+    // Average Command implentation
+    if (0 == strncmp(inputBuffer, average_command, 1+numBytes)) {
+        Serial.print("Average: ");
+        Serial.println(average);
+        return 1;
+    }
+    return 0;
+}
+
+void resetInputBuffer(char* inputString, uint16_t* numChars) {
+    *numChars = 0;
+    inputString[0] = '\0';      // in case memset fails
+    memset(inputString, '\0', 1+INPUT_STRING_MAX_LENGTH);
 }
