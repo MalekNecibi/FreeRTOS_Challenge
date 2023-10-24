@@ -42,7 +42,6 @@ static const uint64_t timer_max_count = 1000 * 1000;        // after M increment
 
 #define SAMPLES_PER_FRAME               10
 #define BUFFER_LENGTH                   ( 2 * SAMPLES_PER_FRAME )
-#define DTYPE                           float
 
 // IO Pins
 static const int adc_pin = A0;
@@ -52,8 +51,8 @@ static hw_timer_t* timer = NULL;
 static SemaphoreHandle_t adc_new_frame = NULL;
 static portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 
-static volatile DTYPE buffer[ BUFFER_LENGTH ];
-static volatile DTYPE average = 0.0;
+static volatile int buffer[ BUFFER_LENGTH ];
+static volatile float average = 0.0;
 
 
 /// Function Signatures ///
@@ -76,7 +75,8 @@ void setup() {
     Serial.setTimeout(10);
     vTaskDelay(1000 / portTICK_PERIOD_MS);    // Serial initialization needs time
     Serial.println();
-    Serial.println("---- FreeRTOS Challenge 9 : Malek ----");
+    Serial.println("------ FreeRTOS Challenge 9 : Malek -------");
+    Serial.println("---- Enter 'avg' for current A0 value  ----");
     
     
     adc_new_frame = xSemaphoreCreateBinary();
@@ -141,22 +141,17 @@ void IRAM_ATTR onTimer(void) {
     
     static int newest_data_index = -1;
     static int num_new_samples = 0;
-    // static unsigned long start = micros();
-
-    // unsigned long now = micros();
-    // unsigned long delta = (now - start) / 1e6;
     
     int adc_val = analogRead(adc_pin);
-    // DTYPE adc_val = delta;
     int next_index = (newest_data_index + 1) % BUFFER_LENGTH;
     
     portENTER_CRITICAL_ISR(&spinlock);
     {
         buffer[next_index] = adc_val;
-        newest_data_index = next_index;
     }
     portEXIT_CRITICAL_ISR(&spinlock);
-    
+
+    newest_data_index = next_index;
     num_new_samples++;
     
     // when new complete frame
@@ -175,7 +170,7 @@ void IRAM_ATTR onTimer(void) {
 
 void computeAverage(void* param){
     static int oldest_data_index = -1;
-    DTYPE rolling_sum;
+    float rolling_sum;
 
     while (1) {
         // yield until new complete frame (semaphore/notification)
@@ -185,11 +180,11 @@ void computeAverage(void* param){
         for (int i = 0; i < SAMPLES_PER_FRAME; i++) {
             rolling_sum += buffer[(oldest_data_index + i) % BUFFER_LENGTH];
         }
+        oldest_data_index = (oldest_data_index + SAMPLES_PER_FRAME) % BUFFER_LENGTH;
 
         portENTER_CRITICAL(&spinlock);
         {
             average = rolling_sum / SAMPLES_PER_FRAME;
-            oldest_data_index = (oldest_data_index + SAMPLES_PER_FRAME) % BUFFER_LENGTH;
         }
         portEXIT_CRITICAL(&spinlock);
     }
@@ -198,16 +193,19 @@ void computeAverage(void* param){
 void serialInterface(void* param) {
     // loop check for new characters
     while(1) {
-        if (Serial.available() > 0) {            
-            // serial loopback
+        if (Serial.available() > 0) {
             String inputStr = Serial.readString();
-            Serial.print(inputStr);
-
-            // listen for special command (avg)
-            inputStr.trim();
-            if (inputStr == "avg") {
+            String inputStrTrimmed = String(inputStr);
+            inputStrTrimmed.trim();
+            
+            // exception for special command (avg)
+            if (inputStrTrimmed == "avg") {
                 Serial.print("Average: ");
                 Serial.println(average);
+
+            } else {
+                // serial loopback
+                Serial.print(inputStr);
             }
         }
     }
