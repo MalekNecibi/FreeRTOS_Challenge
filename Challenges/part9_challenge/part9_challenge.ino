@@ -43,6 +43,10 @@ static const uint64_t timer_max_count = 1000 * 1000;        // after M increment
 #define SAMPLES_PER_FRAME               10
 #define BUFFER_LENGTH                   ( 2 * SAMPLES_PER_FRAME )
 
+#define INPUT_STRING_MAX_LENGTH 63
+static const char* average_command = "avg";
+
+
 // IO Pins
 static const int adc_pin = A0;
 
@@ -72,7 +76,7 @@ void setup() {
     // pinMode(adc_pin, INPUT);
     
     Serial.begin(115200);
-    Serial.setTimeout(10);
+    // Serial.setTimeout(10);
     vTaskDelay(1000 / portTICK_PERIOD_MS);    // Serial initialization needs time
     Serial.println();
     Serial.println("------ FreeRTOS Challenge 9 : Malek -------");
@@ -102,7 +106,7 @@ void setup() {
     xTaskCreatePinnedToCore(
         serialInterface,
         "Serial Interface",
-        256 + configMINIMAL_STACK_SIZE,
+        512 + configMINIMAL_STACK_SIZE,
         NULL,
         1,
         NULL,
@@ -191,22 +195,51 @@ void computeAverage(void* param){
 }
 
 void serialInterface(void* param) {
+    static char inputChars[INPUT_STRING_MAX_LENGTH + 1] = {0};  // extra for sentinel
+    int numChars = 0;
+    
     // loop check for new characters
     while(1) {
         if (Serial.available() > 0) {
-            String inputStr = Serial.readString();
-            String inputStrTrimmed = String(inputStr);
-            inputStrTrimmed.trim();
+            char newChar = Serial.read();
             
-            // exception for special command (avg)
-            if (inputStrTrimmed == "avg") {
-                Serial.print("Average: ");
-                Serial.println(average);
+            // edge case: end of command/sentence
+            if ('\r' == newChar || '\n' == newChar) {
+                Serial.println();
+                inputChars[numChars] = '\0';
+                
+                // treat LF and CRLF as equivalent newlines
+                if ('\r' == newChar && '\n' == Serial.peek()) {
+                    Serial.read();
+                }
 
+                // Average Command implentation
+                if (0 == strcmp(inputChars, average_command)) {
+                    Serial.print("Average: ");
+                    Serial.println(average);
+                }
+
+                // reset buffer
+                numChars = 0;
+                inputChars[0] = '\0';
+
+            // base case
             } else {
-                // serial loopback
-                Serial.print(inputStr);
+                inputChars[numChars] = newChar;
+                // inputChars[numChars+1] = '\0';                     // hacky but safer
+                Serial.print(newChar);
+                numChars++;
+            }
+            
+            // prevent buffer overflow
+            if (numChars >= INPUT_STRING_MAX_LENGTH) {
+                // ASSUMPTION : maximum length messages are not commands, and will not be parsed
+                Serial.println();
+                numChars = 0;
             }
         }
+
+        taskYIELD();
+        // vTaskDelay(5 / portTICK_PERIOD_MS);
     }
 }
