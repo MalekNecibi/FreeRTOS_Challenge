@@ -1,7 +1,7 @@
 
 // Task : Using hardware interrupts, poll an Analog Pin every 100ms, and output
 //        the average over the past 1 second when requested via "avg" command over
-//        serial, while also simulating a loopback adapter
+//        serial, while also simulating a Serial loopback adapter
 
 
 // Modified from DigiKey FreeRTOS Educational Guide : Challenge 9
@@ -9,9 +9,6 @@
 
 // Malek Necibi
 // 10/05/2023
-
-// Since I lacked hardware to physically change analog state, I am instead
-//        using "micros() since boot" as a substitute for the polling value
 
 /*
 Hardware Timer ISR
@@ -48,7 +45,7 @@ static const uint64_t timer_max_count = 1000 * 1000;        // after M increment
 #define DTYPE                           float
 
 // IO Pins
-static const int adc_pin = 13;  // A0;
+static const int adc_pin = A0;
 
 // Globals
 static hw_timer_t* timer = NULL;
@@ -73,7 +70,7 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH);
 
-    pinMode(adc_pin, OUTPUT);
+    // pinMode(adc_pin, INPUT);
     
     Serial.begin(115200);
     Serial.setTimeout(10);
@@ -95,7 +92,7 @@ void setup() {
     xTaskCreatePinnedToCore(
         computeAverage,
         "Compute ADC Average",
-        4096 + configMINIMAL_STACK_SIZE,
+        512 + configMINIMAL_STACK_SIZE,
         NULL,
         2,
         NULL,
@@ -105,7 +102,7 @@ void setup() {
     xTaskCreatePinnedToCore(
         serialInterface,
         "Serial Interface",
-        4096 + configMINIMAL_STACK_SIZE,
+        256 + configMINIMAL_STACK_SIZE,
         NULL,
         1,
         NULL,
@@ -128,7 +125,7 @@ void setup() {
     timerAlarmEnable(timer);
     
     // vTaskStartScheduler();   // needed on Vanilla FreeRTOS
-    // vTaskDavgelete(NULL);
+    // vTaskDelete(NULL);
 }
 
 void loop() {
@@ -144,13 +141,13 @@ void IRAM_ATTR onTimer(void) {
     
     static int newest_data_index = -1;
     static int num_new_samples = 0;
-    static unsigned long start = micros();
+    // static unsigned long start = micros();
 
-    unsigned long now = micros();
-    unsigned long delta = (now - start) / 1e6;
+    // unsigned long now = micros();
+    // unsigned long delta = (now - start) / 1e6;
     
-    // int adc_val = digitalRead(adc_pin);
-    DTYPE adc_val = delta;
+    int adc_val = analogRead(adc_pin);
+    // DTYPE adc_val = delta;
     int next_index = (newest_data_index + 1) % BUFFER_LENGTH;
     
     portENTER_CRITICAL_ISR(&spinlock);
