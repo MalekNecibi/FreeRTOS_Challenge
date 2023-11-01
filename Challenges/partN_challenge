@@ -4,22 +4,22 @@ static const BaseType_t app_cpu = 0;
 static const BaseType_t app_cpu = 1;
 #endif
 
-static const int led_pin = LED_BUILTIN;
-
-void task(void* parameter);
+void task(void* param);
 
 void setup() {
-    pinMode(led_pin, OUTPUT);
-    digitalWrite(led_pin, HIGH);
+	// visual indicator that upload/reset complete
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
 
     Serial.begin(115200);
-    vTaskDelay(500 / portTICK_PERIOD_MS);    // Serial initialization needs time
+    vTaskDelay(750 / portTICK_PERIOD_MS);    // Serial initialization needs time
+	Serial.println("\r\n----- Begin Challenge : Malek Necibi -----");
     
-    // Start Task
+    // Start Tasks
     xTaskCreatePinnedToCore(
         task,
         "Task A",
-        256 + configMINIMAL_STACK_SIZE,
+        512 + configMINIMAL_STACK_SIZE,
         NULL,
         1,
         NULL,
@@ -27,19 +27,19 @@ void setup() {
     );
 
     
-    // vTaskStartScheduler();   // needed on Vanilla FreeRTOS
-    vTaskDelete(NULL);
+	// Remove setup() and loop() task
+    // vTaskDelete(NULL);
 }
 
 void loop() {}
 
-void task(void* parameter) {
-    // if (NULL == parameter) {
-        // return;
-    // }
-    void* pVariable = (void*)parameter;
+/// Tasks
+void task(void* param) {
+    // DTYPE  arg = *(DTYPE*)param;
+    // DTYPE* arg =  (DTYPE*)param;
     
     while(1) {
+		// implementation
         taskYIELD();
     }
 }
